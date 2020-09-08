@@ -1,0 +1,502 @@
+---
+title: "EDA for Ease of Doing Business by Quality of Government"
+author: "Karmanya Pathak"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+<style>
+    h1, h2, h3, h4, h5, h6, li {
+        color: #990000;
+    }
+</style>
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,warning=FALSE, message=FALSE)
+
+
+df <- read.csv("D:/Github/EDA/Exploratory Data Analysis/qog_std_cs_jan20.csv")
+
+
+```
+
+# Loading the packages
+
+
+```{r library}
+
+library(tidyverse)
+library(readr)
+library(kableExtra)
+library(ggplot2)
+library(tidyr)
+library(factoextra)
+library(purrr)
+library(corrplot)
+library(cluster)
+library(Hmisc)
+
+
+```
+
+
+## Research Question
+
+The QoG dataset explores the quality of government data for the year 2020 from multiple data sources. From multiple categories and data sources, the focus of this research and report is on the Ease of doing business.
+
+The research question for this project would be: "How do business regulations and enforcements across various economies affect their respective ease of doing business?"
+
+
+
+## Describe Data
+
+
+Out of 1758 variables, this research focuses on 12 business factor varables and 2 variables identifying the economy or the country.
+
+The following 2 dependent variables represent the country name and their respective country code to analyze their ease of doing business:
+
+1. cname
+
+2. ccode
+
+The following independent variables are considered for analysing ease of business based on their rating system and the respective scores achieved by each country for the duration of the study:
+
+1. eob_dcp16: Dealing with construction permits [1](#1)
+
+2. eob_ec16: Enforcing contracts [2](#2)
+
+3. eob_eob16: Ease of doing business score global [3](#3)
+
+4. eob_gc15: Getting credit [4](#4)
+
+5. eob_ge16: Getting electricity [5](#5)
+
+6. eob_ldri: Land dispute resolution index [6](#6)
+
+7. eob_pmi15: Protecting minority investors [7](#7)
+
+8. eob_pt17: Paying taxes [8](#8)
+
+9. eob_ri15: Resolving insolvency [9](#9)
+
+10. eob_rp16: Registering property [10](#10)
+
+11. eob_sab: Starting a business [11](#11)
+
+12. eob_tab16: Trading across borders [12](#12)
+
+
+The score for each of the above independent variables ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+```{r describe_data}
+
+eda <- subset(df,select = c(ccode,cname, eob_dcp16, eob_ec16, eob_eob16, eob_gc15, eob_ge16, eob_ldri, eob_pmi15, eob_pt17, eob_ri15, eob_rp16, eob_sab, eob_tab16))
+
+
+# Normalize column names
+
+names(eda) <- make.names(names(eda))
+
+# Number of rows
+
+n_row <- nrow(eda)
+
+# Number of columns
+
+n_col <- ncol(eda)
+
+# Run it in the current block but always comment this out for your final report
+
+# str(eda) # commented for the output file
+
+# Converting eob_gc15 from integer to numeric
+
+eda$eob_gc15 <- as.numeric(eda$eob_gc15)
+
+# str(eda) # Checking for data types # comment for output file
+
+
+# run it in the current block but always comment this out for your final report
+
+# head(eda) # commented for the output file
+
+
+# Finding numeric variables
+num_var <- eda %>% 
+  select_if(is.numeric) %>% # recall how to check data types
+  names()
+
+
+# Finding character variables
+
+chr_var <- eda %>% 
+  select_if(is.character) %>%
+  names()
+
+# Finding factor variables
+
+fac_var <- eda %>%
+  select_if(is.factor) %>%
+  names()
+
+
+# Change all characters into factors. Recall what factors are.
+eda <- eda %>% 
+  mutate_if(sapply(eda, is.character), as.factor)
+
+
+
+# Finding out number missing values?
+
+miss_count <- table((is.na(eda)))[2]
+miss_perc <- prop.table(table((is.na(eda))))[2]
+
+
+# Drop rows with missing values
+
+eda_nona <- na.omit(eda)
+
+# New number of rows
+
+new_n_row <- nrow(eda_nona)
+
+
+
+
+```
+
+The dataset has `r n_row` rows and `r n_col` columns. 
+
+**Numeric Variables**: `r length(num_var)`
+
+`r num_var`
+
+**Categorical Variables**: `r length(chr_var)`
+
+`r chr_var`
+
+**Factor variables**: `r length(fac_var)`
+
+`r fac_var`
+
+**Total of Missing values**: `r miss_count` which is `r miss_perc*100` percent of data.
+
+After dropping rows with missing values, the new total number of rows are `r new_n_row`
+
+Since only `r miss_perc*100`% of the observations have missing values, there is significant data to conduct further research by loading the data frame without missing values into a new data frame.
+
+
+```{r country}
+
+n_countries <- length(eda_nona$cname)
+
+```
+
+The dataset has `r n_countries` countries. 
+
+
+## Exploratory Data Analysis
+
+Within the scope of this report, only few variables are chosen for exploration.
+
+The following graphs show the score frequency for starting a business and trading across borders.
+
+```{r Data Exploration}
+
+hist(eda_nona$eob_sab,
+     main="Histogram for EOB - Starting a business", 
+     xlab="Score", 
+     border="black", 
+     col="gray",
+     xlim=c(0,100),
+     las=1, 
+     breaks=5)
+
+hist(eda_nona$eob_tab16,
+     main="Histogram for EOB - Trading across borders", 
+     xlab="Score", 
+     border="black", 
+     col="gray",
+     xlim=c(0,100),
+     las=1, 
+     breaks=5)
+
+
+hist(eda_nona$eob_pmi15,
+     main="Histogram for EOB - Trading across borders", 
+     xlab="Score", 
+     border="black", 
+     col="gray",
+     xlim=c(0,100),
+     las=1, 
+     breaks=5)
+
+
+```
+
+
+The following graph shows the top 10 countries by ease of doing business.
+
+```{r ease_of_business, fig.width=10}
+
+eda_nona %>%
+group_by(cname) %>%
+summarise(mean_ease_business = mean(eob_eob16)) %>%
+arrange(desc(mean_ease_business)) %>%
+head(.,n=10) %>%
+ggplot()+
+geom_bar(aes(x=reorder(cname, -mean_ease_business), y=mean_ease_business), stat= "identity") +
+  geom_label(aes(x=cname, y=mean_ease_business, label = round(mean_ease_business, digits = 2))) +
+  labs(title = "Top 10 Countries with ease of doing business", x = "Country", y = "Mean Score")
+
+
+```
+
+
+The following graph shows the top 10 countries that have good policies for taxes.
+
+```{r taxes, fig.width=10}
+
+eda_nona %>%
+group_by(cname) %>%
+summarise(mean_taxes = mean(eob_pt17)) %>%
+arrange(desc(mean_taxes)) %>%
+head(.,n=10) %>%
+ggplot()+
+geom_bar(aes(x=reorder(cname, -mean_taxes), y=mean_taxes), stat= "identity") +
+  geom_label(aes(x=cname, y=mean_taxes, label = round(mean_taxes, digits = 2))) +
+  labs(title = "Top 10 Countries with good tax policy", x = "Country", y = "Mean Score")
+
+
+```
+
+The following plot shows the correlation between the variables
+
+```{r correlation}
+
+eda_nona_cor <- cor(eda_nona[,-c(1,2,6)], method = "pearson")
+
+#eda_nona_cor # comment out during final print
+
+corrplot(eda_nona_cor, type = "upper", order = "hclust", tl.col = "black", tl.srt = 45)
+
+
+```
+
+
+The following graph shows the distribution of data for each variable.
+
+```{r boxplot, fig.width=10,fig.height=5}
+
+  ggplot(stack(eda_nona[-1]), aes(x = ind, y = values, fill="coral")) +
+  geom_boxplot()+
+  labs(title = "Distribution of data for each variable", x = "Variable Names", y = "Values")
+
+
+```
+
+
+The data exploration reveals that there are no missing values and the variable eob_ldri Land dispute resolution index has a different data range. 
+
+This column will not be used in future analysis in this research.
+
+Also, variables eob_sab, eob_pt17, eob_tab16 and eob_dcp16 have significant frequencies of outliers and decreasing in the said order.
+
+
+## Clustering
+
+
+The aim of cluster analysis is to group countries with similar scores of ease of business and to see which countries fall in each group.
+
+
+```{r cluster}
+
+rownames(eda_nona)<- eda_nona$cname
+
+eda_cluster <- eda_nona[,-c(1,2)]
+
+
+```
+
+Since the data is already standardized on a scale, there was no need to scale the data using scale().
+
+Using elbow, silhouette and gap statistics methods to find the optimal number of clusters, it can be concluded that it is optimal to have 3 clusters for this data frame.
+
+```{r final_cluster_plot}
+
+
+# Elbow method to determine optimal clusters
+
+set.seed(123)
+
+fviz_nbclust(eda_cluster, kmeans, method = "wss") # gives ideal kmean of 2
+
+# silhouette method
+
+fviz_nbclust(eda_cluster, kmeans, method = "silhouette") # gives ideal kmean of 2
+
+
+# Gap Statistics method:
+
+# compute gap statistic
+set.seed(123)
+gap_stat <- clusGap(eda_cluster, FUN = kmeans, nstart = 25,
+                    K.max = 10, B = 50)
+
+# Print the result
+
+#print(gap_stat, method = "firstmax") # commenting for final output
+
+fviz_gap_stat(gap_stat) # gives ideal kmean of 4
+
+
+
+set.seed(123)
+final <- kmeans(eda_cluster, 2, nstart = 50) # using 2 clusters for kmeans
+
+fviz_cluster(final, data = eda_cluster)
+
+```
+
+
+
+## PCA
+
+Looking at the data, it is observed that there are more variable than can be used to form a good analysis. To reduce the number of variables, Prinicipal Component Analysis is utilized.
+
+For PCA, first the correlation between variables are plotted.
+
+```{r cor}
+
+# pairs(eda_cluster,cex.labels = 2, font.labels = 2) # comment for knitted file
+
+# cor(eda_cluster)  # comment for knitted file
+
+res <- cor(eda_cluster, method='pearson')
+
+corrplot(res, type = "upper", order = "hclust", tl.col = "black", tl.srt = 45)
+
+
+```
+
+
+eob_eob16 has a strong positive linear relationship (+.070) with 7 out of 10 other numeric variables, namely:
+
+eob_eob16 and eob_ec16: 0.71
+eob_eob16 and eob_ge16: 0.78
+eob_eob16 and eov_pmi15: 0.7284136
+eob_eob16 and eob_pt17: 0.71
+eob_eob16 and eob_ri15: 0.7769863
+eob_eob16 and eob_rp16: 0.7848144
+eob_eob16 and eob_tab16: 0.7983523
+
+
+The above graph clearly shows the correlation between some variables are high whereas others are moderate to weak.
+
+
+The next steps is to reduce the variable by fitting the data using PCA.
+
+```{r pca,warning=FALSE}
+
+fit <- prcomp((eda_cluster), cor = TRUE)
+
+summary(fit) # comment for output file
+ 
+eda_new <- fit$x[,(1:4)]
+
+head(eda_new)
+
+
+```
+
+
+From the above importance of components, it is deduced that the 1st 4 have a cumulative proportion of 81.48% of the variance.
+
+This can be further explained using the graphs below.
+
+```{r scree_plot}
+
+fviz_eig(fit, addlabels = TRUE, ylim = c(0, 85))
+
+eig.val <- get_eigenvalue(fit)
+
+# eig.val  # comment for knitted file
+
+
+
+```
+
+
+The Biplot clearly shows that the variable: eob_ri15, eob_tab16, eob_ge16 and eob_eob16 have the highest contribution to both PC1 and PC2.
+
+
+```{r, fig.width=10}
+
+biplot(fit, expand=3, xlim=c(-0.20, 0.4), ylim=c(-0.4, 0.4))
+
+```
+
+
+## Conclusion
+
+From the above analysis, it can be concluded that business regulations and enforcements across various economies affect their respective ease of doing business and they can be grouped into 3 different clusters of countries from the methods based on the scores of the variables considered.
+
+The PCA shows us that the whole analysis can be reduced to just 4 components or variables that would reproduce the information with similar information making the computation faster and easier analysis.
+
+
+## Reference
+
+
+1) https://qog.pol.gu.se/data/datadownloads/qogstandarddata
+2) Teorell, Jan, Stefan Dahlberg, Sören Holmberg, Bo Rothstein, Natalia Alvarado
+Pachon & Sofia Axelsson. 2020. The Quality of Government Standard Dataset, version
+Jan20. University of Gothenburg: The Quality of Government Institute,
+http://www.qog.pol.gu.se doi:10.18157/qogstdjan20
+3) The QoG Standard Dataset 2020 Codebook
+i) Teorell, Jan, Stefan Dahlberg, Sören Holmberg, Bo Rothstein, Natalia Alvarado
+Pachon & Sofia Axelsson. 2020. The Quality of Government Standard Dataset, version
+Jan20. University of Gothenburg: The Quality of Government Institute,
+http://www.qog.pol.gu.se doi:10.18157/qogstdjan20
+http://www.qogdata.pol.gu.se/data/qog_std_jan20.pdf
+ii) http://www.doingbusiness.org/en/doingbusiness
+(The World Bank Group, 2019)
+
+## Appendix
+
+1 {#1} eob_dcp16: Score-Dealing with Construction Permits (DB16-19 methodology) measures the gap between an economy's performance and the regulatory best practice on the Dealing with Construction permits indicator components. It is calculated as the simple average of the scores for Procedures (number), Time (days), Cost (a percentage of the warehouse value), and the Building Quality Control Index. The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+2 {#2} eob_ec16: Score-Enforcing contracts (DB16 methodology) measures the gap between an economy's performance and the regulatory best practice on the Enforcing Contracts indicator components. It is calculated as the simple average of the scores for Time (days), Cost (% of claim value) and Quality of judicial processes index. The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+3 {#3} eob_eob16: Ease of doing business score (DB16 methodology) captures the gap between an economy's performance and a measure of best practice across the entire sample of 41 indicators for 10 Doing Business topics. The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance. Calculating the ease of doing business score for each economy involves two main steps. In the first step individual component indicators are normalized to a common unit where each of the 41 component indicators y (except for the total tax and contribution rate) is rescaled using the linear transformation (worst - y)/(worst - best). In this formulation the highest score represents the best regulatory performance on the indicator across all economies since 2005 or the third year in which data for the indicator were collected. Both the best regulatory performance and the worst regulatory performance are established every five years based on the Doing Business data for the year in which they are established and remain at that level for the five years regardless of any changes in data in interim years. In the second step for calculating the ease of doing business score, the scores obtained for individual indicators for each economy are aggregated through simple averaging into one score, first for each topic and then across all 10 topics. For the ease of doing business score (DB16 methodology), the specific topic scores used are: Score-Starting a business, Score-Dealing with construction permits (DB16-19 methodology), Score-Getting electricity (DB16-19 methodology), Score-Registering property (DB16 methodology), Score-Getting credit (DB15-19 methodology), Score-Protecting minority investors (DB15-19 methodology), Score-Paying taxes (DB06-16 methodology), Score-Trading across borders (DB16-19 methodology), Score-Enforcing contracts (DB16 methodology), Score-Resolving insolvency (DB15-19 methodology).
+
+
+4 {#4} eob_gc15: Score-Getting credit (DB15-19 methodology) measures the gap between an economy's performance and the regulatory best practice on the Getting Credit indicator components. The sub-indicators are weighted proportionally, according to their contribution to the total score, with a weight of 60% assigned to the strength of legal rights index and 40% to the depth of credit information index. The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+
+5 {#5} eob_ge16: Score-Getting electricity (DB16-19 methodology) measures the gap between an economy's performance and the regulatory best practice on the Getting Electricity indicator components. It is calculated as the simple average of the scores for Procedures (number), Time (days), Cost (% of income per capita), and Reliability of supply and transparency of tariff index. The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+
+6 {#6} eob_ldri: Land dispute resolution index (0-8) (DB16-19 methodology) measures the accessibility of conflict resolution mechanisms and the extent of liability for entities or agents recording land transactions.
+
+
+7 {#7} eob_pmi15: Score-Protecting minority investors (DB15-19 methodology) measures the gap between an economy's performance and the regulatory best practice on the Protecting Minority Investors indicator components. It is calculated as the simple average of the scores for Extent of conflict of interest regulation index (0-10) (DB15-19 methodology) and Extent of shareholder governance index (0-10) (DB15-19 methodology). The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+
+8 {#8} eob_pt17: Score-Paying taxes (DB17-19 methodology) measures the gap between an economy's performance and the regulatory best practice on the Paying Taxes indicator components. It is calculated as the simple average of the scores for Payments (number per year), Time (hours), Total Tax and Contribution Rate (% of profits), and Postfiling index (0-100) (DB17-19 methodology). The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+
+9 {#9} eob_ri15: Score-Resolving insolvency (DB15-19 methodology) measures the gap between an economy's performance and the regulatory best practice on the Resolving Insolvency indicator components. It is calculated as the simple average of the scores for the Recovery Rate (cents on the dollar) and the Strength of Insolvency Framework Index (0-16). The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+
+10 {#10} eob_rp16: Score-Registering Property (DB16 methodology) measures the gap between an economy's performance and the regulatory best practice on the Registering Property indicator components. It is calculated as the simple average of the scores for Procedures (number), Time (days), Cost (% of property value), and Quality of land administration index (0-30) (DB16 methodology). The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+
+11 {#11} eob_sab: Score-Starting a business measures the gap between an economy's performance and the regulatory best practice on the Starting a Business indicator components. It is calculated as the simple average of the scores for Procedures (number), Time (calendar days), Cost (% of income per capita), and Paid-in Minimum capital (% of income per capita). The scores for the following components are obtained as such: the score for Procedures (number) is calculated based on the average of scores for Procedures - Men (number) and Procedures - Women (number); the score for Time (calendar days) is calculated based on the average of scores for Time - Men (calendar days) and Time - Women (calendar days); and the score for Cost (% of income per capita) is calculated based on the average of scores for Cost - Men (% of income per capita) and Cost - Women (% of income per capita). The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+
+12 {#12} eob_tab16: Score-Trading across Borders (DB16-19 methodology) measures the gap between an economy's performance and the regulatory best practice on the Trading across Borders indicator components. It is calculated as the simple average of the scores for Time to export: Border compliance (hours), Cost to export: Border compliance (US dollar), Time to export: Documentary compliance (hours), Cost to export: Documentary compliance (US dollar), Time to import: Border compliance (hours), Cost to import: Border compliance (US dollar), Time to import: Documentary compliance (hours) and Cost to import: Documentary compliance (US dollar). The score ranges from 0 to 100, where 0 represents the worst regulatory performance and 100 the best regulatory performance.
+
+
